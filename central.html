@@ -2,37 +2,29 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA MAX - Central de Inteligência Integrada</title>
+    <title>SISTEMA MAX - Central de Inteligência</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #020617; color: white; overflow: hidden; }
         #sidebar-central { width: 400px; background: #0f172a; border-right: 2px solid #1e293b; display: flex; flex-direction: column; z-index: 1000; }
         .header-central { padding: 25px; background: #1e293b; border-bottom: 2px solid #334155; }
-        .header-central h2 { margin: 0; color: #3b82f6; font-size: 1.4rem; letter-spacing: 1px; }
-        .lista-alvos { flex-grow: 1; overflow-y: auto; padding: 15px; background: #020617; }
-        .card-ponto { background: #1e293b; border-radius: 8px; padding: 15px; margin-bottom: 12px; border-left: 5px solid #ef4444; }
+        #lista-alertas { flex-grow: 1; overflow-y: auto; padding: 15px; background: #020617; display: flex; flex-direction: column; gap: 12px; }
+        .card-alerta { background: #1e293b; border-left: 5px solid #ef4444; padding: 15px; border-radius: 6px; font-size: 0.9rem; animation: slideIn 0.3s ease; }
         #map-central { flex-grow: 1; height: 100%; }
-        @keyframes pulse {
-            0% { fill-opacity: 0.3; stroke-width: 2; }
-            50% { fill-opacity: 0.6; stroke-width: 5; }
-            100% { fill-opacity: 0.3; stroke-width: 2; }
-        }
-        .pulsing-area { animation: pulse 2s infinite ease-in-out; }
+        .numero-chamados { display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; background: #ef4444; border: 3px solid white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; box-shadow: 0 0 15px rgba(255,0,0,0.5); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
 <body>
 
     <div id="sidebar-central">
         <div class="header-central">
-            <h2>CENTRAL MAX</h2>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
-                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
-                <span style="font-size: 0.65rem; color: #94a3b8; font-weight: bold;">UNIDADE GUARULHOS - OPERACIONAL</span>
-            </div>
+            <h2 style="margin:0; color:#3b82f6; letter-spacing:1px;">CENTRAL MAX</h2>
+            <span style="font-size:0.7rem; color:#10b981; font-weight:bold;">● MONITORAMENTO EM TEMPO REAL</span>
         </div>
-        <div class="lista-alvos" id="lista">
-            <p style="text-align: center; color: #475569; font-size: 0.8rem;">Aguardando sinais de emergência...</p>
+        <div id="lista-alertas">
+            <p id="msg-vazia" style="text-align:center; color:#475569; margin-top:30px;">Aguardando transmissões...</p>
         </div>
     </div>
 
@@ -40,51 +32,67 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-    
     <script>
-        // Configuração do Mapa
         var map = L.map('map-central', { zoomControl: false }).setView([-23.44, -46.52], 14);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        // CONEXÃO COM O RÁDIO (ABLY)
         const ably = new Ably.Realtime('nIelyg.53cnCw:XImw8D79XEvpS3D-o-satgyzgvrpKtNfhrcLFyIuvgM'); 
         const canal = ably.channels.get('monitoramento');
+        let focosDeCrise = [];
 
-        // ESCUTANDO O CELULAR
         canal.subscribe('emergencia', (mensagem) => {
             const dados = mensagem.data;
+            const agora = new Date().toLocaleTimeString();
             
-            // 1. Alerta Sonoro Simples (Beep do Navegador)
-            const bleep = new AudioContext();
-            const osc = bleep.createOscillator();
-            osc.type = "sine";
-            osc.frequency.value = 880;
-            osc.connect(bleep.destination);
-            osc.start();
-            osc.stop(bleep.currentTime + 0.5);
+            // Som de Alerta Tático
+            new Audio('https://www.soundjay.com/buttons/beep-01a.mp3').play();
 
-            // 2. Criar Card na lateral
-            const lista = document.getElementById('lista');
-            const novoCard = `
-                <div class="card-ponto">
-                    <h5 style="margin:0; color:#ef4444;">🚨 ALERTA DE PÂNICO</h5>
-                    <p style="font-size:0.75rem; color:#94a3b8;">${dados.msg}</p>
-                    ${dados.lat ? `<small>Lat: ${dados.lat}</small>` : ''}
+            // Atualiza Painel Lateral
+            const lista = document.getElementById('lista-alertas');
+            if(document.getElementById('msg-vazia')) document.getElementById('msg-vazia').remove();
+            
+            const card = document.createElement('div');
+            card.className = 'card-alerta';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <b style="color:#f87171">ALERTA DE EMERGÊNCIA</b>
+                    <small style="color:#94a3b8">${agora}</small>
                 </div>
+                <div>${dados.msg}</div>
             `;
-            lista.innerHTML = novoCard + lista.innerHTML;
+            lista.prepend(card);
 
-            // 3. Atualizar Mapa se houver GPS
+            // Gerencia Alvos no Mapa
             if(dados.lat && dados.lng) {
-                map.flyTo([dados.lat, dados.lng], 18);
-                L.circle([dados.lat, dados.lng], {
-                    color: '#ef4444',
-                    fillColor: '#ef4444',
-                    radius: 40,
-                    className: 'pulsing-area'
-                }).addTo(map).bindPopup("<b>ALVO EM EMERGÊNCIA</b>").openPopup();
-            } else {
-                alert("🚨 ALERTA RECEBIDO: " + dados.msg);
+                let foco = focosDeCrise.find(f => map.distance([f.lat, f.lng], [dados.lat, dados.lng]) < 50);
+
+                if(foco) {
+                    foco.contagem++;
+                    foco.marker.setRadius(50 + (foco.contagem * 10));
+                    foco.label.setIcon(L.divIcon({ 
+                        className: '', 
+                        html: `<div class="numero-chamados">${foco.contagem}</div>`, 
+                        iconSize: [45, 45],
+                        iconAnchor: [22, 22]
+                    }));
+                } else {
+                    let novoFoco = { lat: dados.lat, lng: dados.lng, contagem: 1 };
+                    novoFoco.marker = L.circle([dados.lat, dados.lng], { 
+                        color: 'red', fillColor: '#ef4444', fillOpacity: 0.4, radius: 50 
+                    }).addTo(map);
+                    
+                    novoFoco.label = L.marker([dados.lat, dados.lng], {
+                        icon: L.divIcon({ 
+                            className: '', 
+                            html: `<div class="numero-chamados">1</div>`, 
+                            iconSize: [45, 45],
+                            iconAnchor: [22, 22]
+                        })
+                    }).addTo(map);
+                    
+                    focosDeCrise.push(novoFoco);
+                }
+                map.flyTo([dados.lat, dados.lng], 17);
             }
         });
     </script>

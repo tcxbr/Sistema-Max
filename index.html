@@ -2,134 +2,66 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA MAX - Inteligência e Resposta</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA MAX - Dispositivo Tático</title>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: white; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 380px; background: #111827; display: flex; flex-direction: column; border-right: 2px solid #1f2937; z-index: 1000; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .tabs { display: flex; background: #1f2937; }
-        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.75rem; color: #64748b; border-bottom: 3px solid transparent; }
-        .tab.active { background: #111827; color: #3b82f6; border-bottom: 3px solid #3b82f6; }
-        .tab-emergency.active { color: #ef4444; border-bottom: 3px solid #ef4444; }
-        .content-area { padding: 20px; flex-grow: 1; overflow-y: auto; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .form-group { margin-bottom: 15px; padding: 12px; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
-        label { display: block; margin-bottom: 8px; font-size: 0.7rem; color: #3b82f6; font-weight: bold; text-transform: uppercase; }
-        select, textarea, input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #374151; background: #0f172a; color: white; outline: none; }
-        .panic-box { background: #2d0a0a; border: 2px solid #ef4444; padding: 20px; border-radius: 12px; text-align: center; }
-        .panic-btn { background: #ef4444; color: white; border: none; padding: 20px; border-radius: 8px; width: 100%; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-bottom: 15px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
-        .call-btn { background: #991b1b; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 15px; border-radius: 8px; font-weight: bold; margin-bottom: 10px; border: 1px solid #f87171; }
-        .clean-btn { background: #1e293b; color: #94a3b8; border: none; padding: 12px; width: 100%; font-size: 0.7rem; font-weight: bold; cursor: pointer; margin-top: auto; border-top: 1px solid #334155; }
-        #map { flex-grow: 1; height: 100%; }
+        .tab { flex: 1; padding: 20px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.9rem; color: #64748b; border-bottom: 3px solid transparent; }
+        .tab.active { background: #111827; color: #ef4444; border-bottom: 3px solid #ef4444; }
+        .content-area { padding: 30px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .panic-box { background: #2d0a0a; border: 2px solid #ef4444; padding: 40px 20px; border-radius: 20px; text-align: center; box-shadow: 0 0 30px rgba(239, 68, 68, 0.2); }
+        .panic-btn { background: #ef4444; color: white; border: none; padding: 30px; border-radius: 50%; width: 160px; height: 160px; font-size: 1.5rem; font-weight: bold; cursor: pointer; box-shadow: 0 0 25px rgba(239, 68, 68, 0.5); transition: transform 0.1s; }
+        .panic-btn:active { transform: scale(0.95); background: #991b1b; }
+        #status-gps { font-size: 0.8rem; color: #94a3b8; margin-top: 20px; display: block; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div class="tabs">
-            <div class="tab active" onclick="switchTab('report', this)">📝 DENÚNCIA</div>
-            <div class="tab tab-emergency" onclick="switchTab('emergency', this)">🚨 SOCORRO</div>
-        </div>
-
-        <div class="content-area">
-            <div id="report" class="tab-content active">
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <span style="background: #1e3a8a; color: #93c5fd; font-size: 0.6rem; padding: 3px 8px; border-radius: 4px; font-weight: bold;">INTELIGÊNCIA SIGILOSA</span>
-                </div>
-                <div class="form-group">
-                    <label>Local da Ocorrência</label>
-                    <button onclick="marcarRaioSigilo()" style="width:100%; padding:12px; background:#064e3b; color:#10b981; border:1px solid #10b981; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:10px;">🎯 MARCAR MINHA REGIÃO</button>
-                    <input type="text" id="endereco" placeholder="Local automático ou digite">
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Crime</label>
-                    <select id="tipo">
-                        <option>Tráfico de Drogas</option>
-                        <option>Maria da Penha</option>
-                        <option>Roubo de Veículos</option>
-                        <option>Assalto</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Relato Detalhado</label>
-                    <textarea id="desc" rows="4"></textarea>
-                </div>
-                <button onclick="enviarDenuncia()" style="width:100%; padding:18px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">ENVIAR DENÚNCIA</button>
-            </div>
-
-            <div id="emergency" class="tab-content">
-                <div class="panic-box">
-                    <button class="panic-btn" onclick="acionarProtocoloTotal()">🆘 BOTÃO DE PÂNICO</button>
-                    <a href="tel:190" class="call-btn">📞 LIGAR 190</a>
-                </div>
-            </div>
-        </div>
-        <button class="clean-btn" onclick="limpezaTotal()">⚠️ LIMPAR E SAIR</button>
+    <div class="tabs">
+        <div class="tab active">🚨 BOTÃO DE PÂNICO</div>
     </div>
 
-    <div id="map"></div>
+    <div class="content-area">
+        <div class="panic-box">
+            <button class="panic-btn" onclick="acionarProtocoloTotal()">SOS</button>
+            <span id="status-gps">SISTEMA PRONTO</span>
+        </div>
+    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-    
     <script>
-        // CONEXÃO COM O RÁDIO (ABLY)
         const ably = new Ably.Realtime('nIelyg.53cnCw:XImw8D79XEvpS3D-o-satgyzgvrpKtNfhrcLFyIuvgM'); 
         const canal = ably.channels.get('monitoramento');
 
-        var map = L.map('map', { zoomControl: false }).setView([-23.44, -46.52], 14);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-        let markerEme = null;
-
-        function switchTab(tabId, el) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            el.classList.add('active');
-        }
-
-        // FUNÇÃO QUE ENVIA O SINAL PARA O PC
         function acionarProtocoloTotal() {
-            // 1. Avisa a central na hora!
-            canal.publish('emergencia', { msg: '🚨 BOTÃO DE PÂNICO ATIVADO PELO USUÁRIO!' });
-            alert("PROTOCOLO ATIVADO: O sinal foi enviado para a Central Max.");
+            const status = document.getElementById('status-gps');
+            status.innerText = "CAPTURANDO GPS...";
+            status.style.color = "#fbbf24";
 
-            navigator.geolocation.watchPosition((pos) => {
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            navigator.geolocation.getCurrentPosition((pos) => {
                 const { latitude, longitude } = pos.coords;
                 
-                // 2. Envia a localização em tempo real para o mapa do PC
                 canal.publish('emergencia', { 
-                    msg: '📍 LOCALIZAÇÃO ATUALIZADA', 
+                    msg: '🚨 PÂNICO ATIVADO', 
                     lat: latitude, 
                     lng: longitude 
                 });
 
-                if(markerEme) map.removeLayer(markerEme);
-                map.flyTo([latitude, longitude], 18);
-                markerEme = L.marker([latitude, longitude]).addTo(map).bindPopup("<b>SUA POSIÇÃO</b>").openPopup();
-            }, null, { enableHighAccuracy: true });
-        }
-
-        function enviarDenuncia() {
-            const tipo = document.getElementById('tipo').value;
-            const relato = document.getElementById('desc').value;
-            canal.publish('emergencia', { msg: `📝 NOVA DENÚNCIA: ${tipo} - ${relato}` });
-            alert('Denúncia enviada com sucesso!');
-        }
-
-        function marcarRaioSigilo() {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                map.flyTo([pos.coords.latitude, pos.coords.longitude], 17);
-                L.circle([pos.coords.latitude, pos.coords.longitude], { color: '#3b82f6', radius: 100 }).addTo(map);
-                document.getElementById('endereco').value = "LOCAL MARCADO NO MAPA";
+                status.innerText = "SINAL ENVIADO!";
+                status.style.color = "#10b981";
+            }, (err) => {
+                canal.publish('emergencia', { msg: '🚨 PÂNICO (SEM GPS)' });
+                status.innerText = "ENVIADO SEM LOCALIZAÇÃO";
+                status.style.color = "#ef4444";
+            }, { 
+                enableHighAccuracy: true, 
+                timeout: 8000, 
+                maximumAge: 0 
             });
-        }
-
-        function limpezaTotal() {
-            if(confirm("Deseja apagar os rastros?")) window.location.href = "https://www.google.com";
         }
     </script>
 </body>
