@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>SISTEMA MAX - Central de Inteligência Integrada</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #020617; color: white; overflow: hidden; }
+        
+        /* Sidebar Estilizada */
+        #sidebar-central { width: 400px; background: #0f172a; border-right: 2px solid #1e293b; display: flex; flex-direction: column; z-index: 1000; }
+        .header-central { padding: 25px; background: #1e293b; border-bottom: 2px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .header-central h2 { margin: 0; color: #3b82f6; font-size: 1.4rem; letter-spacing: 1px; }
+        
+        /* Lista de Alvos */
+        .lista-alvos { flex-grow: 1; overflow-y: auto; padding: 15px; background: #020617; }
+        .card-ponto { background: #1e293b; border-radius: 8px; padding: 15px; margin-bottom: 12px; border-left: 5px solid #3b82f6; transition: 0.3s; }
+        .card-ponto h5 { margin: 0; font-size: 0.85rem; text-transform: uppercase; color: #f8fafc; }
+        .card-ponto p { margin: 8px 0; font-size: 0.75rem; color: #94a3b8; line-height: 1.4; }
+        
+        /* Botões de Ação */
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        .btn-view { background: #334155; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; flex: 1; }
+        .btn-intervir { background: #065f46; color: #10b981; border: 1px solid #10b981; padding: 8px 12px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; font-weight: bold; flex: 1; }
+        .btn-intervir:hover { background: #10b981; color: white; }
+
+        #map-central { flex-grow: 1; height: 100%; }
+
+        /* Animação Pulsante */
+        @keyframes pulse {
+            0% { fill-opacity: 0.3; stroke-width: 2; }
+            50% { fill-opacity: 0.6; stroke-width: 5; }
+            100% { fill-opacity: 0.3; stroke-width: 2; }
+        }
+        .pulsing-area { animation: pulse 2s infinite ease-in-out; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-central">
+        <div class="header-central">
+            <h2>CENTRAL MAX</h2>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
+                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
+                <span style="font-size: 0.65rem; color: #94a3b8; font-weight: bold;">UNIDADE GUARULHOS - ATIVA</span>
+            </div>
+        </div>
+
+        <div class="lista-alvos" id="lista">
+            </div>
+
+        <div style="padding: 15px; background: #1e293b; border-top: 1px solid #334155;">
+            <p style="font-size: 0.65rem; color: #64748b; margin: 0; text-align: center;">CONECTADO AO GPS DAS VIATURAS (API 4.0)</p>
+        </div>
+    </div>
+
+    <div id="map-central"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inicialização do Mapa com foco em Guarulhos
+        var map = L.map('map-central', { zoomControl: false }).setView([-23.44, -46.52], 14);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: 'MAX SECURITY'
+        }).addTo(map);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        const estilosCrime = {
+            "Tráfico": { color: '#ef4444', label: '🚨 TRÁFICO DE DROGAS' },
+            "Agressão": { color: '#ec4899', label: '⚠️ MARIA DA PENHA' },
+            "Baile": { color: '#f59e0b', label: '🔊 PERTURBAÇÃO / BAILE' },
+            "Assalto": { color: '#eab308', label: '🔫 ASSALTO RECORRENTE' }
+        };
+
+        function adicionarAlvo(lat, lng, tipo, relato) {
+            const config = estilosCrime[tipo];
+            
+            // 1. Adiciona o Círculo Pulsante no Mapa
+            const zona = L.circle([lat, lng], {
+                color: config.color,
+                fillColor: config.color,
+                fillOpacity: 0.4,
+                radius: 50,
+                className: 'pulsing-area'
+            }).addTo(map).bindPopup(`<b>${config.label}</b><br>${relato}`);
+
+            // 2. Adiciona o Card na Sidebar
+            const lista = document.getElementById('lista');
+            const cardId = `card-${Math.random().toString(36).substr(2, 9)}`;
+            
+            lista.innerHTML += `
+                <div class="card-ponto" id="${cardId}" style="border-left-color: ${config.color}">
+                    <h5>${config.label}</h5>
+                    <p>${relato}</p>
+                    <div class="btn-group">
+                        <button class="btn-view" onclick="map.flyTo([${lat}, ${lng}], 18)">VER NO MAPA</button>
+                        <button class="btn-intervir" onclick="intervir('${cardId}', ${lat}, ${lng})">INTERVIR</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Função de Intervenção (O Policial "Limpa" o local)
+        function intervir(id, lat, lng) {
+            if(confirm("Confirmar intervenção policial neste local? O status mudará para LIMPO.")) {
+                document.getElementById(id).style.opacity = "0.4";
+                document.getElementById(id).style.borderLeftColor = "#10b981";
+                L.circle([lat, lng], { color: '#10b981', radius: 60 }).addTo(map).bindPopup("LOCAL INTERVIDO PELA PM");
+                alert("Status atualizado: Viaturas notificadas da área segura.");
+            }
+        }
+
+        // Mock de Dados para o seu teste
+        adicionarAlvo(-23.442, -46.522, "Tráfico", "Ponto de venda ativo nos fundos da viela. Presença de olheiros.");
+        adicionarAlvo(-23.435, -46.515, "Agressão", "Denúncia de violência doméstica em curso. Segundo andar.");
+        adicionarAlvo(-23.448, -46.530, "Assalto", "Ponto de ônibus com frequentes roubos de celular à noite.");
+
+        // Simulação de Viatura PM
+        var vtrIcon = L.divIcon({ 
+            className: 'vtr', 
+            html: '<div style="background:#3b82f6; width:12px; height:12px; border-radius:50%; border:2px solid #fff; box-shadow: 0 0 10px #3b82f6;"></div>' 
+        });
+        L.marker([-23.445, -46.525], {icon: vtrIcon}).addTo(map).bindPopup("<b>VTR PM-105</b><br>Em patrulhamento");
+
+    </script>
+</body>
+</html><script>
+    // Expandindo os estilos para incluir os novos cenários táticos
+    const estilosCrime = {
+        "Tráfico": { color: '#ef4444', label: '🚨 TRÁFICO', icon: '●' },
+        "Maria da Penha": { color: '#ec4899', label: '🏠 CASA PROTEGIDA - MARIA DA PENHA', isFixed: true },
+        "Fuga": { color: '#6366f1', label: '🏃 ROTA DE FUGA RECENTE', isFlash: true },
+        "Assalto": { color: '#eab308', label: '🔫 ROUBO/FURTO' }
+    };
+
+    function adicionarAlvoEspecial(lat, lng, tipo, relato) {
+        const config = estilosCrime[tipo];
+        
+        // Se for Maria da Penha, usamos um marcador fixo sem raio de erro (Ponto Exato)
+        if (config.isFixed) {
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup(`<b style="color:#ec4899">${config.label}</b><br>${relato}`)
+                .openPopup();
+        } 
+        // Se for Rota de Fuga, usamos um ícone de alerta azul
+        else if (config.isFlash) {
+            L.circleMarker([lat, lng], {
+                radius: 10,
+                color: '#6366f1',
+                fillOpacity: 0.8
+            }).addTo(map).bindPopup(`<b>${config.label}</b><br>${relato}`);
+        }
+        else {
+            // Mantém o padrão pulsante para os demais
+            L.circle([lat, lng], { color: config.color, radius: 50, className: 'pulsing-area' }).addTo(map);
+        }
+
+        // Adiciona na lista lateral
+        document.getElementById('lista').innerHTML += `
+            <div class="card-ponto" style="border-left-color: ${config.color}">
+                <h5>${config.label}</h5>
+                <p>${relato}</p>
+                <button class="btn-view" onclick="map.flyTo([${lat}, ${lng}], 19)">VER PONTO EXATO</button>
+            </div>
+        `;
+    }
+
+    // Exemplos práticos do que você sugeriu:
+    adicionarAlvoEspecial(-23.441, -46.521, "Maria da Penha", "Vítima: Maria S. - Prédio B, Ap 12. Agressor em deslocamento.");
+    adicionarAlvoEspecial(-23.443, -46.523, "Fuga", "Indivíduo evadiu-se a pé pela Viela da Paz após avistar VTR PM-105.");
+</script>
