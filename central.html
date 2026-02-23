@@ -171,4 +171,17 @@
     // Exemplos práticos do que você sugeriu:
     adicionarAlvoEspecial(-23.441, -46.521, "Maria da Penha", "Vítima: Maria S. - Prédio B, Ap 12. Agressor em deslocamento.");
     adicionarAlvoEspecial(-23.443, -46.523, "Fuga", "Indivíduo evadiu-se a pé pela Viela da Paz após avistar VTR PM-105.");
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+<script>
+  // Conectando com a sua chave que você já configurou
+  const ably = new Ably.Realtime('nIelyg.53cnCw:XImw8D79XEvpS3D-o-satgyzgvrpKtNfhrcLFyIuvgM'); 
+  const canal = ably.channels.get('monitoramento');
+
+  // ESSA PARTE É NOVA: Faz o PC "ouvir" o celular
+  canal.subscribe('emergencia', (mensagem) => {
+      // Quando o celular envia, o PC solta esse aviso
+      alert("🚨 ALERTA RECEBIDO NO SISTEMA MAX: " + mensagem.data.msg);
+      
+      // Se quiser que ele faça um barulho, podemos adicionar depois!
+  });
 </script>
